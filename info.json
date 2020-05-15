@@ -1,0 +1,10 @@
+{
+	"name": "Recipe Randomizer",
+	"version": "0.1.0",
+	"factorio_version": "0.18",
+	"title": "Recipe Randomizer",
+	"author": "Iceman1415",
+	"homepage": "tba",
+	"dependencies": ["base"],
+	"description": "my version of recipe randomizer"
+}
