@@ -41,22 +41,16 @@ end
 --      aka the same item is both the ingredient and product of a recipe
 --    as long as there is a escape hatch in some sense
 
--- >> we want it so that all items are producable, and consumable  (placable) <<
--- this is getting so compicated NotLikeThis
 
 -- first of all, the recipes need to be researched
 -- so most recipes depend of science bottles (whatever they're called)
---[[ NOTE: the type "custom dictionary string → LuaTechnologyPrototype"
-actually means a custom dictionary, with keys of type string,
-indexing values of type LuaTechnologyPrototype
-]]
 
 -- dependency_table have type custom dictionary string -> array of strings
 -- where keys are strings of the product item name,
 -- and the indexed value is an array of the string names of the ingredients
 dependency_table = {}
 reverse_dependency_table = {}
--- TODO: split off functions, too much indentation
+
 for tech_name, tech_prototype in pairs(data.raw.technology) do
     -- TODO: we assume that the prerequisite tech need no more
     -- research vial types than the current research
@@ -118,7 +112,7 @@ log("science dependencies: " .. serpent.block(dependency_table))
 -- now we actually randomize the ingredients,
 --   we get the list of all ingredients
 --   remove ingredients that depends on our current item
---   and randomly select from the new list
+--   and randomly select from the candidate list
 --     is there a possibility of dead end, where no suitable ingredient exists?
 --       no: we can always fall back onto iron + copper plate, or
 --       other raw materials (ores)
@@ -151,38 +145,3 @@ for _, recipe in pairs(data.raw.recipe) do
     -- err how do I change the recipe again?
 end
 log(data.raw.recipe[1])
---[[for item, _ in pairs(dependency_table) do
-    -- we get a list of items, that are not depended on our target item
-    -- so we don't have a circular dependency
-    -- RAGE: I hate a lack of static typing -> no type hint >:(
-    local acceptable_ingredients = {}
-    for _, ingredient in pairs(data.raw.item) do
-        for product, ingredient_list in pairs(dependency_table) do
-            local acceptable = true
-            for _, dependency in pairs(ingredient_list) do
-                if dependency == item then acceptable = false end
-            end
-            if acceptable then
-                table.insert(acceptable_ingredients, product)
-            end
-        end
-    end
-    
-    log("acceptable ingredients of " .. item .. ": " .. serpent.line(acceptable_ingredients))
-
-    -- ah so this doesn't work
-    -- ...
-    -- we can't index recipe_prototypes with item name
-    -- ok, so we should always look at recipes, instead of ingredients
-
-
-    -- we get the original recipe to see how many ingredients
-    -- should the recipe have
-    -- TODO: what to do with fluids?
-    if data.raw.recipe[item] == nil then
-        log("what do you mean" .. item)
-    else
-        local num_ingredients = #data.raw.recipe[item].ingredients
-        log("wtf .. " .. num_ingredients)
-    end
-end]]
