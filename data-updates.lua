@@ -112,7 +112,7 @@ for _, recipe in pairs(data.raw.recipe) do
                 table.insert(free_products, product)
             end
         end
-    elseif recipe.normal.enabled then
+    elseif recipe.normal.enabled == nil or recipe.normal.enabled then
         for _, product in pairs(recipe_products(recipe)) do
             table.insert(free_products, product)
         end
@@ -289,11 +289,13 @@ end
 -- hopefully this won't cause any problems
 for _, recipe_name in pairs(free_products) do
     local recipe = data.raw.recipe[recipe_name]
+    local available_ingredients = unlocked_ingredients
+    table.inesrt(available_ingredients, "wood")
     local ingredients = {}
     if recipe.normal ~= nil then
-        ingredients = random_choose_n(unlocked_ingredients, table_size(recipe.normal.ingredients))
+        ingredients = random_choose_n(available_ingredients, table_size(recipe.normal.ingredients))
     else
-        ingredients = random_choose_n(unlocked_ingredients, table_size(recipe.ingredients))
+        ingredients = random_choose_n(available_ingredients, table_size(recipe.ingredients))
     end
     change_recipe(recipe, ingredients)
 
@@ -302,7 +304,6 @@ for _, recipe_name in pairs(free_products) do
     end
 end
 
---log(table_size(unlocked_ingredients))
 --log(serpent.block(unlocked_ingredients))
 for tier, recipes in pairs(recipe_layers) do
     local new_ingredients = {}
