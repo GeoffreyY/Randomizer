@@ -268,7 +268,7 @@ function change_recipe(original_recipe, new_ingredients)
         new_recipe.subgroup = original_recipe.subgroup
         new_recipe.main_product = original_recipe.main_product
     end
-    if original_recipe.name == "basic-oil-processing" then
+    if original_recipe.name == "electric-mining-drill" then
         log("HERE")
     end
     data:extend {new_recipe}
@@ -289,7 +289,7 @@ end
 -- hopefully this won't cause any problems
 for _, recipe_name in pairs(free_products) do
     local recipe = data.raw.recipe[recipe_name]
-    local available_ingredients = unlocked_ingredients
+    local available_ingredients = util.table.deepcopy(unlocked_ingredients)
     table.insert(available_ingredients, "wood")
     local ingredients = {}
     if recipe.normal ~= nil then
