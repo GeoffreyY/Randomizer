@@ -1,3 +1,8 @@
+--randomize
+for i = 1, settings.startup["randomize-mod-random-value"].value do
+    local _ = math.random()
+end
+
 function keys(t)
     local result = {}
     for key, _ in pairs(t) do
@@ -218,24 +223,7 @@ function change_recipe(original_recipe, new_ingredients)
         new_recipe.normal.result_count = original_recipe.normal.result_count
         new_recipe.normal.enabled = original_recipe.normal.enabled
 
-        new_recipe.expensive = {}
-        local ingredients = {}
-        for i, ingredient in pairs(new_ingredients) do
-            local new_ingredient = original_recipe.expensive.ingredients[i]
-            if new_ingredient.type == "item" then
-                new_ingredient.name = ingredient
-                new_ingredient.amount = new_amount(new_ingredient.amount)
-            elseif new_ingredient.type == nil then
-                new_ingredient[1] = ingredient
-                new_ingredient[2] = new_amount(new_ingredient[2])
-            end
-            table.insert(ingredients, new_ingredient)
-        end
-        new_recipe.expensive.ingredients = ingredients
-        new_recipe.expensive.energy_required = original_recipe.expensive.energy_required
-        new_recipe.expensive.result = original_recipe.expensive.result
-        new_recipe.expensive.result_count = original_recipe.expensive.result_count
-        new_recipe.expensive.enabled = original_recipe.expensive.enabled
+        new_recipe.expensive = util.table.deepcopy(new_recipe.normal)
 
         new_recipe.category = original_recipe.category
     else
