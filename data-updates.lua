@@ -289,13 +289,11 @@ end
 -- hopefully this won't cause any problems
 for _, recipe_name in pairs(free_products) do
     local recipe = data.raw.recipe[recipe_name]
-    local available_ingredients = util.table.deepcopy(unlocked_ingredients)
-    table.insert(available_ingredients, "wood")
     local ingredients = {}
     if recipe.normal ~= nil then
-        ingredients = random_choose_n(available_ingredients, table_size(recipe.normal.ingredients))
+        ingredients = random_choose_n(unlocked_ingredients, table_size(recipe.normal.ingredients))
     else
-        ingredients = random_choose_n(available_ingredients, table_size(recipe.ingredients))
+        ingredients = random_choose_n(unlocked_ingredients, table_size(recipe.ingredients))
     end
     change_recipe(recipe, ingredients)
 
