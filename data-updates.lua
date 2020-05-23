@@ -290,7 +290,7 @@ end
 for _, recipe_name in pairs(free_products) do
     local recipe = data.raw.recipe[recipe_name]
     local available_ingredients = unlocked_ingredients
-    table.inesrt(available_ingredients, "wood")
+    table.insert(available_ingredients, "wood")
     local ingredients = {}
     if recipe.normal ~= nil then
         ingredients = random_choose_n(available_ingredients, table_size(recipe.normal.ingredients))
