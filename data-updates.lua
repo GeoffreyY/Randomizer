@@ -218,7 +218,7 @@ function change_recipe(original_recipe, new_ingredients)
             table.insert(ingredients, new_ingredient)
         end
         new_recipe.normal.ingredients = ingredients
-        new_recipe.normal.energy_required = original_recipe.normal.energy_required
+        new_recipe.normal.energy_required = new_amount(original_recipe.normal.energy_required)
         new_recipe.normal.result = original_recipe.normal.result
         new_recipe.normal.result_count = original_recipe.normal.result_count
         new_recipe.normal.enabled = original_recipe.normal.enabled
@@ -242,7 +242,7 @@ function change_recipe(original_recipe, new_ingredients)
         end
         new_recipe.ingredients = ingredients
         -- TODO: randomize energy required
-        new_recipe.energy_required = original_recipe.energy_required
+        new_recipe.energy_required = new_amount(original_recipe.energy_required)
         new_recipe.result = original_recipe.result
         new_recipe.result_count = original_recipe.result_count
         new_recipe.enabled = original_recipe.enabled
