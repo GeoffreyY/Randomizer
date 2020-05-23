@@ -192,6 +192,10 @@ end
 
 -- now that we have the (rough) order that the tech are unlocked at, we can...
 
+function new_amount(n)
+    return math.max(1, n * (0.5 + math.random()))
+end
+
 function change_recipe(original_recipe, new_ingredients)
     local new_recipe = {type = "recipe", name = original_recipe.name}
     if original_recipe.normal ~= nil then
@@ -201,8 +205,10 @@ function change_recipe(original_recipe, new_ingredients)
             local new_ingredient = original_recipe.normal.ingredients[i]
             if new_ingredient.type == "item" then
                 new_ingredient.name = ingredient
+                new_ingredient.amount = new_amount(new_ingredient.amount)
             elseif new_ingredient.type == nil then
                 new_ingredient[1] = ingredient
+                new_ingredient[2] = new_amount(new_ingredient[2])
             end
             table.insert(ingredients, new_ingredient)
         end
@@ -218,8 +224,10 @@ function change_recipe(original_recipe, new_ingredients)
             local new_ingredient = original_recipe.expensive.ingredients[i]
             if new_ingredient.type == "item" then
                 new_ingredient.name = ingredient
+                new_ingredient.amount = new_amount(new_ingredient.amount)
             elseif new_ingredient.type == nil then
                 new_ingredient[1] = ingredient
+                new_ingredient[2] = new_amount(new_ingredient[2])
             end
             table.insert(ingredients, new_ingredient)
         end
@@ -237,8 +245,10 @@ function change_recipe(original_recipe, new_ingredients)
             local new_ingredient = original_recipe.ingredients[i]
             if new_ingredient.type == "item" then
                 new_ingredient.name = ingredient
+                new_ingredient.amount = new_amount(new_ingredient.amount)
             elseif new_ingredient.type == nil then
                 new_ingredient[1] = ingredient
+                new_ingredient[2] = new_amount(new_ingredient[2])
             end
             table.insert(ingredients, new_ingredient)
         end
@@ -264,7 +274,36 @@ function change_recipe(original_recipe, new_ingredients)
     data:extend {new_recipe}
 end
 
-local unlocked_ingredients = free_products
+-- we manually initialize with ores
+-- we can't automate wood in vanilla so no wood
+local unlocked_ingredients = {"iron-ore", "copper-ore", "stone", "coal"}
+-- we don't want to change recipe of furnace, otherwise we can't smelt
+for i, recipe_name in pairs(free_products) do
+    if recipe_name == "stone-furnace" then
+        local tmp = free_products[1]
+        free_products[1] = free_products[i]
+        free_products[i] = tmp
+        break
+    end
+end
+-- hopefully this won't cause any problems
+for _, recipe_name in pairs(free_products) do
+    local recipe = data.raw.recipe[recipe_name]
+    local ingredients = {}
+    if recipe.normal ~= nil then
+        ingredients = random_choose_n(unlocked_ingredients, table_size(recipe.normal.ingredients))
+    else
+        ingredients = random_choose_n(unlocked_ingredients, table_size(recipe.ingredients))
+    end
+    change_recipe(recipe, ingredients)
+
+    for _, product in pairs(recipe_products(recipe)) do
+        table.insert(unlocked_ingredients, product)
+    end
+end
+
+--log(table_size(unlocked_ingredients))
+--log(serpent.block(unlocked_ingredients))
 for tier, recipes in pairs(recipe_layers) do
     local new_ingredients = {}
     for _, recipe_name in pairs(recipes) do
