@@ -63,6 +63,27 @@ function recipe_products(recipe)
     return results
 end
 
+function random_choose(t)
+    local i = math.random(1, table_size(t))
+    return t[keys(t)[i]]
+end
+
+-- randomly choose n different items in table t
+function random_choose_n(t, n)
+    local indicies = {}
+    while table_size(indicies) < n do
+        local i = math.random(1, table_size(t))
+        if not contains(indicies, i) then
+            table.insert(indicies, i)
+        end
+    end
+    local result = {}
+    for _, i in pairs(indicies) do
+        table.insert(result, t[keys(t)[i]])
+    end
+    return result
+end
+
 -- we walk down the tech tree, to get the order that the recipes are unlocked at
 
 -- array of array of tech, where tech at [i] is unlocked by [1..=i-1]
@@ -171,5 +192,107 @@ end
 
 -- now that we have the (rough) order that the tech are unlocked at, we can...
 
-for tier, techs in pairs(tech_layers) do
+function change_recipe(original_recipe, new_ingredients)
+    local new_recipe = {type = "recipe", name = original_recipe.name}
+    if original_recipe.normal ~= nil then
+        new_recipe.normal = {}
+        local ingredients = {}
+        for i, ingredient in pairs(new_ingredients) do
+            local new_ingredient = original_recipe.normal.ingredients[i]
+            if new_ingredient.type == "item" then
+                new_ingredient.name = ingredient
+            elseif new_ingredient.type == nil then
+                new_ingredient[1] = ingredient
+            end
+            table.insert(ingredients, new_ingredient)
+        end
+        new_recipe.normal.ingredients = ingredients
+        new_recipe.normal.energy_required = original_recipe.normal.energy_required
+        new_recipe.normal.result = original_recipe.normal.result
+        new_recipe.normal.result_count = original_recipe.normal.result_count
+        new_recipe.normal.enabled = original_recipe.normal.enabled
+
+        new_recipe.expensive = {}
+        local ingredients = {}
+        for i, ingredient in pairs(new_ingredients) do
+            local new_ingredient = original_recipe.expensive.ingredients[i]
+            if new_ingredient.type == "item" then
+                new_ingredient.name = ingredient
+            elseif new_ingredient.type == nil then
+                new_ingredient[1] = ingredient
+            end
+            table.insert(ingredients, new_ingredient)
+        end
+        new_recipe.expensive.ingredients = ingredients
+        new_recipe.expensive.energy_required = original_recipe.expensive.energy_required
+        new_recipe.expensive.result = original_recipe.expensive.result
+        new_recipe.expensive.result_count = original_recipe.expensive.result_count
+        new_recipe.expensive.enabled = original_recipe.expensive.enabled
+
+        new_recipe.category = original_recipe.category
+    else
+        local ingredients = {}
+        -- TODO: randomize the amount of each ingredients needed
+        for i, ingredient in pairs(new_ingredients) do
+            local new_ingredient = original_recipe.ingredients[i]
+            if new_ingredient.type == "item" then
+                new_ingredient.name = ingredient
+            elseif new_ingredient.type == nil then
+                new_ingredient[1] = ingredient
+            end
+            table.insert(ingredients, new_ingredient)
+        end
+        new_recipe.ingredients = ingredients
+        -- TODO: randomize energy required
+        new_recipe.energy_required = original_recipe.energy_required
+        new_recipe.result = original_recipe.result
+        new_recipe.result_count = original_recipe.result_count
+        new_recipe.enabled = original_recipe.enabled
+
+        new_recipe.category = original_recipe.category
+        new_recipe.results = original_recipe.results
+        new_recipe.icon = original_recipe.icon
+        new_recipe.icons = original_recipe.icons
+        new_recipe.icon_size = original_recipe.icon_size
+        new_recipe.icon_mipmaps = original_recipe.icon_mipmaps
+        new_recipe.subgroup = original_recipe.subgroup
+        new_recipe.main_product = original_recipe.main_product
+    end
+    if original_recipe.name == "basic-oil-processing" then
+        log("HERE")
+    end
+    data:extend {new_recipe}
+end
+
+local unlocked_ingredients = free_products
+for tier, recipes in pairs(recipe_layers) do
+    local new_ingredients = {}
+    for _, recipe_name in pairs(recipes) do
+        local recipe = data.raw.recipe[recipe_name]
+        local ingredients = {}
+        if recipe.normal ~= nil then
+            ingredients = random_choose_n(unlocked_ingredients, table_size(recipe.normal.ingredients))
+        else
+            ingredients = random_choose_n(unlocked_ingredients, table_size(recipe.ingredients))
+        end
+        -- how do I replace the ingredients of the recipe again?
+        --
+        change_recipe(recipe, ingredients)
+
+        -- We batch the new products in new_ingredients,
+        -- before adding them to unlocked_ingredients,
+        -- otherwise other recipes of the same layer will use
+        -- each other
+        -- Actually, is this a problem?
+        for _, product in pairs(recipe_products(recipe)) do
+            table.insert(new_ingredients, product)
+        end
+    end
+
+    for _, ingredient in pairs(new_ingredients) do
+        -- TODO: What do we do with fluids?
+        if contains(keys(data.raw.item), ingredient) and not contains(unlocked_ingredients, ingredient) then
+            table.insert(unlocked_ingredients, ingredient)
+        end
+    end
 end
