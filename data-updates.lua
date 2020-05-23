@@ -268,6 +268,9 @@ function change_recipe(original_recipe, new_ingredients)
     if original_recipe.name == "iron-plate" then
         log("HERE")
     end
+    if original_recipe.name == "stone-brick" then
+        log("HERE")
+    end
     data:extend {new_recipe}
 end
 
@@ -295,7 +298,7 @@ for _, recipe_name in pairs(free_products) do
     local available_ingredients = util.table.deepcopy(unlocked_ingredients)
     if recipe.category == "smelting" then
         -- remove repeated smelting ingredient
-        remove_items(unlocked_ingredients, smelting_ingredients)
+        available_ingredients = remove_items(available_ingredients, smelting_ingredients)
     end
     if recipe.normal ~= nil then
         ingredients = random_choose_n(available_ingredients, table_size(recipe.normal.ingredients))
