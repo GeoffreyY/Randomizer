@@ -222,9 +222,12 @@ function change_recipe(original_recipe, new_ingredients)
             new_recipe.normal.energy_required = new_amount(original_recipe.normal.energy_required)
         end
         new_recipe.normal.result = original_recipe.normal.result
-        new_recipe.normal.result_count = original_recipe.normal.result_count
+        if original_recipe.normal.result_count ~= nil then
+            new_recipe.result_count = new_amount(original_recipe.normal.result_count)
+        end
         new_recipe.normal.enabled = original_recipe.normal.enabled
 
+        -- TODO: expensive mode?
         new_recipe.expensive = util.table.deepcopy(new_recipe.normal)
 
         new_recipe.category = original_recipe.category
@@ -248,7 +251,9 @@ function change_recipe(original_recipe, new_ingredients)
             new_recipe.energy_required = new_amount(original_recipe.energy_required)
         end
         new_recipe.result = original_recipe.result
-        new_recipe.result_count = original_recipe.result_count
+        if original_recipe.result_count ~= nil then
+            new_recipe.result_count = new_amount(original_recipe.result_count)
+        end
         new_recipe.enabled = original_recipe.enabled
 
         new_recipe.category = original_recipe.category
@@ -260,7 +265,7 @@ function change_recipe(original_recipe, new_ingredients)
         new_recipe.subgroup = original_recipe.subgroup
         new_recipe.main_product = original_recipe.main_product
     end
-    if original_recipe.name == "electric-mining-drill" then
+    if original_recipe.name == "iron-plate" then
         log("HERE")
     end
     data:extend {new_recipe}
@@ -278,14 +283,28 @@ for i, recipe_name in pairs(free_products) do
         break
     end
 end
+-- we need to keep track what items are smeltable
+-- if two smelting recipes use the same ingredient,
+-- one of them can't be made
+local smelting_ingredients = {}
+
 -- hopefully this won't cause any problems
 for _, recipe_name in pairs(free_products) do
     local recipe = data.raw.recipe[recipe_name]
     local ingredients = {}
+    local available_ingredients = util.table.deepcopy(unlocked_ingredients)
+    if recipe.category == "smelting" then
+        -- remove repeated smelting ingredient
+        remove_items(unlocked_ingredients, smelting_ingredients)
+    end
     if recipe.normal ~= nil then
-        ingredients = random_choose_n(unlocked_ingredients, table_size(recipe.normal.ingredients))
+        ingredients = random_choose_n(available_ingredients, table_size(recipe.normal.ingredients))
     else
-        ingredients = random_choose_n(unlocked_ingredients, table_size(recipe.ingredients))
+        ingredients = random_choose_n(available_ingredients, table_size(recipe.ingredients))
+    end
+    if recipe.category == "smelting" then
+        -- there should only be one ingredient in a smelting recipe
+        table.insert(smelting_ingredients, ingredients[1])
     end
     change_recipe(recipe, ingredients)
 
