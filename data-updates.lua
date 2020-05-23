@@ -1,3 +1,39 @@
+function keys(t)
+    local result = {}
+    for key, _ in pairs(t) do
+        table.insert(result, key)
+    end
+    return result
+end
+
+-- check whether array contains item
+function contains(array, item)
+    for _, array_item in pairs(array) do
+        if array_item == item then
+            return true
+        end
+    end
+    return false
+end
+
+-- removes items in sub_array from array
+-- doing what stackoverflow tells me to do
+function remove_items(array, sub_array)
+    local j = 1
+    for i = 1, table_size(array) do
+        if not contains(sub_array, array[i]) then
+            if i ~= j then
+                array[j] = array[i]
+                array[i] = nil
+            end
+            j = j + 1
+        else
+            array[i] = nil
+        end
+    end
+    return array
+end
+
 -- returns the array of items that exists in both arrays
 function get_overlap(array1, array2)
     local result = {}
@@ -12,7 +48,8 @@ function get_overlap(array1, array2)
 end
 
 -- returns an array of the resultant / products of the recipe
-function recipe_results(recipe)
+-- used to normalize the type of the return value
+function recipe_products(recipe)
     local results = {}
     if recipe.normal ~= nil then
         table.insert(results, recipe.normal.result)
@@ -26,122 +63,113 @@ function recipe_results(recipe)
     return results
 end
 
--- Overall plan
--- first we need a complete list of recipes
--- we'll remove stuff that we don't went to randomize from the list
---   aka iron and copper plate
+-- we walk down the tech tree, to get the order that the recipes are unlocked at
 
--- TODO: what about fluids
---   the problem is if we randomize a recipe to have too many fluid ingrendients,
---    the recipe will become impossible to make
---    so we need to limit the number of fluids to be <= originial recipe
--- TODO: what about items with multiple recipes
---    it will be possible for one recipe to have circular dependency,
---    or even self-referencial
---      aka the same item is both the ingredient and product of a recipe
---    as long as there is a escape hatch in some sense
+-- array of array of tech, where tech at [i] is unlocked by [1..=i-1]
+tech_layers = {}
+recipe_layers = {}
+locked_techs = util.table.deepcopy(data.raw.technology)
 
-
--- first of all, the recipes need to be researched
--- so most recipes depend of science bottles (whatever they're called)
-
--- dependency_table have type custom dictionary string -> array of strings
--- where keys are strings of the product item name,
--- and the indexed value is an array of the string names of the ingredients
-dependency_table = {}
-reverse_dependency_table = {}
-
-for tech_name, tech_prototype in pairs(data.raw.technology) do
-    -- TODO: we assume that the prerequisite tech need no more
-    -- research vial types than the current research
-    -- aka if optics requires automation unlocked, then
-    -- the research bottles than automation need must a subset of
-    -- the research bottles that optics need
-    -- otherwise we have to loop through all prerequisit tech
-    -- and gather all required research ingredients
-
-    -- TODO: is there a better way of writing this?
-    --   eg tech_prototype.blah.map(|t| t.x)
-    science_dependencies = {}
-    for _, ingredient in pairs(tech_prototype.unit.ingredients) do
-        table.insert(science_dependencies, ingredient.name)
+-- we initialize with techs that don't have prerequisit tech
+-- because we're lazy, we presume these techs don't have extra
+--   science bottle requirements
+free_techs = {}
+for tech_name, tech in pairs(locked_techs) do
+    if tech.prerequisites == nil then
+        free_techs[tech_name] = tech
+        locked_techs[tech_name] = nil
     end
-    -- if the recipe needs to be researched, it also requires the science lab
-    table.insert(science_dependencies, "lab")
+end
+table.insert(tech_layers, free_techs)
 
-    -- for each tech we see which recipe the tech unlocks
-    -- log("tech_prototype: " .. serpent.block(tech_prototype))
-    if tech_prototype.effects ~= nil then
-        for _, unlock in pairs(tech_prototype.effects) do
-            if unlock["type"] == "unlock-recipe" then
-                log(serpent.line(unlock))
-                local recipe_name = unlock["recipe"]
-                -- and for each product of the recipe
-                -- we add the science bottles required to the
-                -- recipe product's dependency
-                local recipe = data.raw.recipe[recipe_name]
-                log(serpent.block(recipe))
+-- we need to keep track whether the science bottles have been unlocked
+free_products = {}
+for _, recipe in pairs(data.raw.recipe) do
+    if recipe.normal == nil then
+        if recipe.enabled == nil or recipe.enabled then
+            for _, product in pairs(recipe_products(recipe)) do
+                table.insert(free_products, product)
+            end
+        end
+    elseif recipe.normal.enabled then
+        for _, product in pairs(recipe_products(recipe)) do
+            table.insert(free_products, product)
+        end
+    end
+end
+log(serpent.block(free_products))
+unlocked_products = util.table.deepcopy(free_products)
 
-                -- actually do we want to arbitrarily only change one
-                -- shouldn't we change both normal and expensive
-                -- ye it's too complicated I'm tired screw it
-
-                local results = recipe_results(recipe)
-
-                -- then for each resultant we add the science dependency
-                -- but what if there are multiple recipes for an item
-                -- instead of adding a new entry, we remove non-overlapping science dependencies 
-                -- well what if recipe A requires (red, green),
-                -- and recipe B requires (red, blue)
-                -- if that's the case, go kill the mod author
-                for _, result in pairs(results) do
-                    if dependency_table[result] == nil then
-                        dependency_table[result] = science_dependencies
-                    else
-                        overlap = get_overlap(dependency_table[result], science_dependencies)
-                        dependency_table[result] = overlap
-                    end
-                end 
+-- these were moved outside here because tech.prerequisit for these free techs does not exist (is nil)
+-- but now these techs and their associated recipes are not in tech_layers and recipe_layers
+local new_recipes = {}
+for _, tech in pairs(free_techs) do
+    if tech.effects ~= nil then
+        for _, effect in pairs(tech.effects) do
+            if effect.type == "unlock-recipe" then
+                table.insert(unlocked_products, effect.recipe)
+                table.insert(new_recipes, effect.recipe)
             end
         end
     end
 end
+table.insert(recipe_layers, new_recipes)
+log(serpent.block(unlocked_products))
 
-log("science dependencies: " .. serpent.block(dependency_table))
-
--- now we actually randomize the ingredients,
---   we get the list of all ingredients
---   remove ingredients that depends on our current item
---   and randomly select from the candidate list
---     is there a possibility of dead end, where no suitable ingredient exists?
---       no: we can always fall back onto iron + copper plate, or
---       other raw materials (ores)
-for _, recipe in pairs(data.raw.recipe) do
-    log("recipe: " .. serpent.block(recipe))
-    local results = recipe_results(recipe)
-    local acceptable_ingredients = data.raw.item
-    -- if an item depends on any of the resultant of the recipe,
-    -- then the item is not acceptable as an ingredient of the recipe
-    for _, result in pairs(results) do
-        local tmp_acceptable_ingredients = {}
-        for _, ingredient in pairs(acceptable_ingredients) do
-            for product, ingredient_list in pairs(dependency_table) do
-                local acceptable = true
-                --[[for _, dependency in pairs(ingredient_list) do
-                    if dependency == item then acceptable = false end
-                end]]
-                if acceptable then
-                    table.insert(tmp_acceptable_ingredients, product)
+local tier = 1
+-- we keep looping and take out techs that are unlocked,
+--   until there are no more techs to remove
+while table_size(locked_techs) ~= 0 do
+    -- find all techs in locked_techs that are unlocked
+    local new_techs = {}
+    for tech_name, tech in pairs(locked_techs) do
+        local unlocked = true
+        -- tech is locked if there are locked prereq tech, ...
+        for _, prereq_tech_name in pairs(tech.prerequisites) do
+            if contains(keys(locked_techs), prereq_tech_name) then
+                unlocked = false
+                break
+            end
+        end
+        -- ... or required science pack is not available
+        for _, science_bottle in pairs(tech.unit.ingredients) do
+            if not contains(unlocked_products, science_bottle[1]) then
+                unlocked = false
+                break
+            end
+        end
+        if unlocked then
+            new_techs[tech_name] = tech
+        end
+    end
+    -- we remove unlocked tech from locked_techs,
+    -- and put unlocked products / recipes into unlocked_products
+    -- so we can know whether a science pack can be made
+    local new_recipes = {}
+    for tech_name, tech in pairs(new_techs) do
+        locked_techs[tech_name] = nil
+        if tech.effects ~= nil then
+            for _, effect in pairs(tech.effects) do
+                if effect.type == "unlock-recipe" then
+                    table.insert(new_recipes, effect.recipe)
+                    for _, product in pairs(recipe_products(data.raw.recipe[effect.recipe])) do
+                        table.insert(unlocked_products, product)
+                    end
                 end
             end
         end
-
-        acceptable_ingredients = tmp_acceptable_ingredients
+        if tech_name == "space-science-pack" then
+            -- we have to manually insert space science pack, because idk
+            table.insert(unlocked_products, "space-science-pack")
+        end
     end
-
-    -- now that we have a list of acceptable ingredients,
-    -- we randomly choose from this list to generate our new recipe
-
-    -- err how do I change the recipe again?
+    table.insert(tech_layers, new_techs)
+    table.insert(recipe_layers, new_recipes)
+    tier = tier + 1
+    log("new unlocked techs " .. tier .. ": " .. serpent.block(keys(new_techs)))
 end
-log(data.raw.recipe[1])
+
+-- now that we have the (rough) order that the tech are unlocked at, we can...
+
+for tier, techs in pairs(tech_layers) do
+end
